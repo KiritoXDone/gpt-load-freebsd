@@ -1,0 +1,103 @@
+name: Build FreeBSD Binary
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Every Monday at 00:00 UTC
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Specific gpt-load version to build (e.g. v1.4.4). Leave empty to use latest.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get target gpt-load version
+        id: upstream
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(curl -s https://api.github.com/repos/tbphp/gpt-load/releases/latest | jq -r .tag_name)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Target gpt-load version: $VERSION"
+
+      - name: Check if already built
+        id: check
+        run: |
+          VERSION="${{ steps.upstream.outputs.version }}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION")
+          if [ "$STATUS" = "200" ]; then
+            echo "already_built=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION already built, skipping."
+          else
+            echo "already_built=false" >> $GITHUB_OUTPUT
+            echo "Version $VERSION not built yet, proceeding with build."
+          fi
+
+      - name: Checkout gpt-load source
+        if: steps.check.outputs.already_built == 'false'
+        uses: actions/checkout@v4
+        with:
+          repository: tbphp/gpt-load
+          ref: ${{ steps.upstream.outputs.version }}
+
+      - name: Setup Node.js
+        if: steps.check.outputs.already_built == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+
+      - name: Build Frontend
+        if: steps.check.outputs.already_built == 'false'
+        run: npm ci && VITE_VERSION=${{ steps.upstream.outputs.version }} npm run build
+        working-directory: ./web
+
+      - name: Setup Go
+        if: steps.check.outputs.already_built == 'false'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build FreeBSD amd64 binary
+        if: steps.check.outputs.already_built == 'false'
+        run: |
+          go mod download
+          CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build \
+            -ldflags "-s -w -X gpt-load/internal/version.Version=${{ steps.upstream.outputs.version }}" \
+            -o gpt-load-freebsd-amd64
+
+      - name: Create Release
+        if: steps.check.outputs.already_built == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.upstream.outputs.version }}
+          name: ${{ steps.upstream.outputs.version }}
+          body: |
+            FreeBSD amd64 binary for [gpt-load ${{ steps.upstream.outputs.version }}](https://github.com/tbphp/gpt-load/releases/tag/${{ steps.upstream.outputs.version }}).
+
+            Built for **serv00** (FreeBSD 14.x amd64).
+
+            ## Usage
+
+            Download `gpt-load-freebsd-amd64`, upload to your serv00 server, then:
+
+            ```bash
+            chmod +x gpt-load-freebsd-amd64
+            ./gpt-load-freebsd-amd64
+            ```
+          files: gpt-load-freebsd-amd64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
