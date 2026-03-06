@@ -1,6 +1,6 @@
-# gpt-load-freebsd
+# cli-proxy-api-plus-freebsd
 
-FreeBSD amd64 binary builds of [gpt-load](https://github.com/tbphp/gpt-load), automatically compiled for [serv00](https://www.serv00.com/) (FreeBSD 14.x amd64).
+FreeBSD amd64 binary builds of [CLIProxyAPIPlus](https://github.com/router-for-me/CLIProxyAPIPlus), automatically compiled for [serv00](https://www.serv00.com/) (FreeBSD 14.x amd64).
 
 Releases are checked and published weekly. You can also trigger a build manually via [Actions](../../actions).
 
@@ -12,13 +12,14 @@ Get the latest binary from [Releases](../../releases).
 
 ```bash
 # Download the binary (replace vX.X.X with the actual version)
-wget https://github.com/KiritoXDone/gpt-load-freebsd/releases/latest/download/gpt-load-freebsd-amd64
+wget https://github.com/KiritoXDone/gpt-load-freebsd/releases/latest/download/cli-proxy-api-plus-freebsd-amd64
+# (Repository name remains historical: gpt-load-freebsd)
 
 # Make it executable
-chmod +x gpt-load-freebsd-amd64
+chmod +x cli-proxy-api-plus-freebsd-amd64
 
 # Run
-./gpt-load-freebsd-amd64
+./cli-proxy-api-plus-freebsd-amd64
 ```
 
-For configuration and advanced usage, see the [gpt-load documentation](https://www.gpt-load.com/docs).
+For configuration and advanced usage, see the [CLIProxyAPIPlus documentation](https://github.com/router-for-me/CLIProxyAPIPlus).
